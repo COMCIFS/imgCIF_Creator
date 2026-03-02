@@ -19,7 +19,7 @@ jobs:
           auto-update-conda: true
           conda-remove-defaults: true
           python-version: "3.12"
-          environment-file: dials2imgcif-test-env.yml
+          environment-file: conda-env.yml
 
       - run: conda list
       - run: pytest
