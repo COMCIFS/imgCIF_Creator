@@ -1,4 +1,4 @@
-name: dials2imgcif-test-env
+name: imgcif-creator
 channels:
   - conda-forge
 dependencies:
@@ -9,3 +9,4 @@ dependencies:
   - prompt-toolkit
   - requests
   - pytest
+  - streamlit

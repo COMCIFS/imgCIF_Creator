@@ -19,12 +19,12 @@ import streamlit as st
 import requests
 from dxtbx.model.experiment_list import ExperimentListFactory
 
-from imgCIF_app import rsync
-from imgCIF_app.core import (
+from imgCIF_creator import rsync
+from imgCIF_creator.core import (
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl
 )
-from imgCIF_app.helpers import extrapolate_sequence, guess_doi
-from imgCIF_app.cache_dir import DownloadsCache
+from imgCIF_creator.helpers import extrapolate_sequence, guess_doi
+from imgCIF_creator.cache_dir import DownloadsCache
 
 DATA_DIR = Path("/gpfs/exfel/data/scratch/kluyvert/imgcif-source-data")
 ARCHIVE_EXTS = {'ZIP': '.zip', 'TGZ': '.tar.gz', 'TBZ': '.tar.bz2', 'TXZ': '.tar.xz'}
