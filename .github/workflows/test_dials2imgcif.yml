@@ -2,11 +2,7 @@ name: Test dials2imgcif
 
 on:
   push:
-    paths:
-      - 'Tools/**'
   pull_request:
-    paths:
-      - 'Tools/**'
   workflow_dispatch:
 
 jobs:
@@ -23,7 +19,7 @@ jobs:
           auto-update-conda: true
           conda-remove-defaults: true
           python-version: "3.12"
-          environment-file: Tools/dials2imgcif-test-env.yml
+          environment-file: dials2imgcif-test-env.yml
 
       - run: conda list
-      - run: pytest Tools/
+      - run: pytest
