@@ -175,7 +175,7 @@ def total_download_size(urls):
     for url in urls:
         if url.startswith("rsync://"):
             fl = rsync.get_file_list(url)
-            total_size = rsync.total_size(fl)
+            total_size += rsync.total_size(fl)
         else:
             r = requests.head(url)
             r.raise_for_status()
@@ -259,18 +259,24 @@ if is_archive:
             st.stop()
         paths.extend(found_paths)
 elif url1.startswith("rsync://"):
-    file_list = rsync.get_file_list(url1)
-    nfiles = len(file_list)
-    download_progress = st.progress(0, f'Downloading {nfiles} files')
-    with download_cache.tmpdir() as td:
-        for ndone in rsync.download(url1, td):
-            msg = f'Downloaded {ndone} / {nfiles}'
-            download_progress.progress(ndone / nfiles, msg)
-        download_dir = download_cache.path_for(url1)
-        td.rename(download_dir)
-    download_progress.empty()
-    download_info.append(DirectoryUrl(url1, download_dir))
+    with st.spinner("Checking rsync files..."):
+        file_urls = set()
+        for url in urls:
+            file_urls.update([u for u, _ in rsync.get_file_list(url)])
 
+    file_urls = sorted(file_urls)
+    nfiles = len(file_urls)
+    common_url, rel_paths = base_url_and_rel_paths(file_urls)
+    download_dir = download_cache.prepare(common_url)
+
+    progress = st.progress(0, f'Downloading {nfiles} files')
+    for ndone in rsync.download(common_url, download_dir, rel_paths):
+        msg = f'Downloaded {ndone} / {nfiles}'
+        progress.progress(ndone / nfiles, msg)
+    progress.empty()
+
+    download_info.append(DirectoryUrl(common_url, download_dir))
+    paths = [download_dir / p for p in rel_paths]
 else:
     common_url, download_dir, rel_paths = download_files(urls, total_size)
     download_info.append(
