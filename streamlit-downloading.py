@@ -23,7 +23,9 @@ from imgCIF_creator import rsync
 from imgCIF_creator.core import (
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl
 )
-from imgCIF_creator.helpers import extrapolate_sequence, guess_doi
+from imgCIF_creator.helpers import (
+    extrapolate_sequence, guess_doi, base_url_and_rel_paths
+)
 from imgCIF_creator.cache_dir import DownloadsCache
 
 DATA_DIR = Path("/gpfs/exfel/data/scratch/kluyvert/imgcif-source-data")
@@ -141,25 +143,6 @@ def download_archives(urls, ext, expected_size):
     return [download_cache.path_for(u) for u in urls]
 
 
-def base_url_and_rel_paths(urls):
-    s0 = urlsplit(urls[0])
-    if len(urls) == 1:
-        dirname, basename = posixpath.split(s0.path)
-        common_url = urlunsplit((s0.scheme, s0.netloc, dirname, s0.query, ''))
-        return common_url, [basename]
-
-    fixed = (s0.scheme, s0.netloc, s0.query)
-    paths = [s0.path]
-    for u in urls[1:]:
-        s = urlsplit(u)
-        if (s.scheme, s.netloc, s.query) != fixed:
-            raise ValueError("Only the path of URLs may vary")
-        paths.append(s.path)
-    common_path = posixpath.commonpath(paths)
-    common_url = urlunsplit((s0.scheme, s0.netloc, common_path, s0.query, ''))
-    return common_url, [posixpath.relpath(p, common_path) for p in paths]
-
-
 def download_files(urls, expected_size):
     common_url, rel_paths = base_url_and_rel_paths(urls)
     dir_for_url = download_cache.prepare(common_url)
@@ -173,14 +156,18 @@ def download_files(urls, expected_size):
 def total_download_size(urls):
     total_size = 0
     for url in urls:
-        if url.startswith("rsync://"):
-            fl = rsync.get_file_list(url)
-            total_size += rsync.total_size(fl)
-        else:
-            r = requests.head(url)
-            r.raise_for_status()
-            total_size += int(r.headers.get('content-length', '0'))
+        r = requests.head(url)
+        r.raise_for_status()
+        total_size += int(r.headers.get('content-length', '0'))
     return total_size
+
+
+def check_download_size(size: int):
+    if size > SIZE_LIMIT:
+        st.warning(f"Download size {fmt_bytes(total_size)} exceeds limit of "
+                   f"{fmt_bytes(SIZE_LIMIT)}. Please use a local tool to create "
+                   f"ImgCIF metadata.")
+        st.stop()
 
 
 def file_rel_paths(top):
@@ -217,72 +204,70 @@ if n_downloads > 1:
 elif not url1:
     st.stop()
 
-if (total_size := total_download_size(urls)) > SIZE_LIMIT:
-    st.warning(f"Download size {fmt_bytes(total_size)} exceeds limit of "
-               f"{fmt_bytes(SIZE_LIMIT)}. Please use a local tool to create "
-               f"ImgCIF metadata.")
-    st.stop()
 
-archive_type_guess = guess_archive_type(urlsplit(url1).path)
+if url1.startswith("rsync://"):
+    base_url, rel_paths = base_url_and_rel_paths(urls)
+    files_requested = rsync.RsyncRequestFiles(base_url, rel_paths)
 
-is_archive = st.toggle("Unpack archives (zip / tar)",
-                       value=(archive_type_guess is not None))
-
-download_info = []
-
-if is_archive:
-    if (archive_type := st.pills(
-        "Archive format", ["ZIP", "TGZ", "TBZ", "TXZ"], default=archive_type_guess
-    )) is None:
-        st.stop()
-    archive_ext = ARCHIVE_EXTS[archive_type]
-
-    unpacked_dirs = download_archives(urls, archive_ext, total_size)
-    download_info = [
-        ArchiveUrl(u, p, archive_type) for (u, p) in zip(urls, unpacked_dirs)
-    ]
-
-    st.text(f"Sample files from {url1}:")
-    st.code('\n'.join(islice(file_rel_paths(unpacked_dirs[0]), 10)), language=None)
-
-    path_in_archive = st.text_input(
-        "Data path in archive",
-        help="Path to a file or a folder inside the archive, or a pattern like `*.cbf`")
-    if not path_in_archive:
-        st.stop()
-
-    paths = []
-    for au in download_info:
-        found_paths = list(au.dir.glob(path_in_archive))
-        if not found_paths:
-            st.warning(f"No matching files found from {au.url}")
-            st.stop()
-        paths.extend(found_paths)
-elif url1.startswith("rsync://"):
     with st.spinner("Checking rsync files..."):
-        file_urls = set()
-        for url in urls:
-            file_urls.update([u for u, _ in rsync.get_file_list(url)])
+        files_on_server = files_requested.resolve()
+    check_download_size(files_on_server.total_size())
 
-    file_urls = sorted(file_urls)
-    nfiles = len(file_urls)
-    common_url, rel_paths = base_url_and_rel_paths(file_urls)
-    download_dir = download_cache.prepare(common_url)
+    nfiles = len(files_on_server.files)
+    download_dir = download_cache.prepare(base_url)
 
     progress = st.progress(0, f'Downloading {nfiles} files')
-    for ndone in rsync.download(common_url, download_dir, rel_paths):
+    for ndone in files_on_server.download(download_dir):
         msg = f'Downloaded {ndone} / {nfiles}'
         progress.progress(ndone / nfiles, msg)
     progress.empty()
 
-    download_info.append(DirectoryUrl(common_url, download_dir))
-    paths = [download_dir / p for p in rel_paths]
+    download_info = [DirectoryUrl(base_url, download_dir)]
+    paths = [download_dir / p for p, _ in files_on_server.files]
 else:
-    common_url, download_dir, rel_paths = download_files(urls, total_size)
-    download_info.append(
-        DirectoryUrl(common_url, download_dir)
-    )
-    paths = [download_dir / p for p in rel_paths]
+    if not all(u.startswith("https://") for u in urls):
+        st.error("URLs must be https:// or rsync://")
+        st.stop()
+
+    total_size = total_download_size(urls)
+    check_download_size(total_size)
+
+    archive_type_guess = guess_archive_type(urlsplit(url1).path)
+    is_archive = st.toggle("Unpack archives (zip / tar)",
+                           value=(archive_type_guess is not None))
+
+    if is_archive:
+        if (archive_type := st.pills(
+            "Archive format", ["ZIP", "TGZ", "TBZ", "TXZ"], default=archive_type_guess
+        )) is None:
+            st.stop()
+        archive_ext = ARCHIVE_EXTS[archive_type]
+
+        unpacked_dirs = download_archives(urls, archive_ext, total_size)
+        download_info = [
+            ArchiveUrl(u, p, archive_type) for (u, p) in zip(urls, unpacked_dirs)
+        ]
+
+        st.text(f"Sample files from {url1}:")
+        st.code('\n'.join(islice(file_rel_paths(unpacked_dirs[0]), 10)), language=None)
+
+        path_in_archive = st.text_input(
+            "Data path in archive",
+            help="Path to a file or a folder inside the archive, or a pattern like `*.cbf`")
+        if not path_in_archive:
+            st.stop()
+
+        paths = []
+        for au in download_info:
+            found_paths = list(au.dir.glob(path_in_archive))
+            if not found_paths:
+                st.warning(f"No matching files found from {au.url}")
+                st.stop()
+            paths.extend(found_paths)
+    else:
+        common_url, download_dir, rel_paths = download_files(urls, total_size)
+        download_info = [DirectoryUrl(common_url, download_dir)]
+        paths = [download_dir / p for p in rel_paths]
 
 #expt_path = st.text_input("EXPT file", None)
 #if expt_path is None:

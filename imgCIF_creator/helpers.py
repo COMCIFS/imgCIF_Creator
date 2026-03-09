@@ -1,4 +1,6 @@
 import re
+import posixpath
+from urllib.parse import urlsplit, urlunsplit
 
 from .core import ArchiveUrl, DirectoryUrl
 
@@ -60,3 +62,32 @@ def extrapolate_sequence(s0: str, s1: str, length: int):
         pieces = matched0.copy()
         pieces[diff_ix] = f"{n0 + i:0{width}}"
         yield "".join(pieces)
+
+
+def base_url_and_rel_paths(urls):
+    """Given a list of URLs where only the path changes, find the common part"""
+    s0 = urlsplit(urls[0])
+    if len(urls) == 1:
+        if s0.path.endswith("/"):
+            path, slash = s0.path[:-1], "/"
+        else:
+            path, slash = s0.path, ""
+        dirname, basename = posixpath.split(path)
+
+        common_url = urlunsplit((s0.scheme, s0.netloc, dirname, s0.query, ''))
+        return common_url, [basename + slash]
+
+    fixed = (s0.scheme, s0.netloc, s0.query)
+    paths = [s0.path]
+    for u in urls[1:]:
+        s = urlsplit(u)
+        if (s.scheme, s.netloc, s.query) != fixed:
+            raise ValueError("Only the path of URLs may vary")
+        paths.append(s.path)
+    common_path = posixpath.commonpath(paths)
+    common_url = urlunsplit((s0.scheme, s0.netloc, common_path, s0.query, ''))
+    return common_url, [
+        # Preserve trailing slashes, they are relevant for rsync
+        posixpath.relpath(p, common_path) + ("/" if p.endswith("/") else "")
+        for p in paths
+    ]
