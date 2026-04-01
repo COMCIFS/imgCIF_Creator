@@ -8,6 +8,7 @@ import streamlit as st
 import requests
 from dxtbx.model.experiment_list import ExperimentListFactory
 
+# Import imgCIF_creator from the nearby folder
 from imgCIF_creator.core import (
     find_hdf5_images,
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl

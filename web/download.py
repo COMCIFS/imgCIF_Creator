@@ -6,8 +6,8 @@ To run this:
 """
 import io
 import os
-import posixpath
 import shutil
+import sys
 import tempfile
 from itertools import islice
 from numbers import Real
@@ -19,6 +19,8 @@ import streamlit as st
 import requests
 from dxtbx.model.experiment_list import ExperimentListFactory
 
+# Import imgCIF_creator from the nearby folder
+sys.path.insert(0, str(Path(__file__).parent.parent))
 from imgCIF_creator import rsync
 from imgCIF_creator.core import (
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl

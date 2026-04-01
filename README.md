@@ -36,9 +36,9 @@ that as input.
 With the environment set up, run:
 
 ```shell
-streamlit run streamlit-downloading.py
+streamlit run web/main.py
 ```
 
 This will show a URL in the terminal to open in a browser.
-This accepts the same data formats as in the terminal, but here you start with
-the URLs to download them.
+The web interface has an option to start by downloading files (up to 5 GB),
+or you can upload a DIALS `.expt` file.
