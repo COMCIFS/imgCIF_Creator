@@ -13,7 +13,8 @@ jobs:
     steps:
       - name: checkout
         uses: actions/checkout@v6
-      - uses: conda-incubator/setup-miniconda@v3
+      - name: Setup conda
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           conda-remove-defaults: true
@@ -21,7 +22,8 @@ jobs:
           python-version: "3.12"
           conda-build-version: "26.3.0"
 
-      - run: |
+      - name: "Build package"
+        run: |
           mkdir conda-bld
           conda build --output-folder conda-bld conda/
 
