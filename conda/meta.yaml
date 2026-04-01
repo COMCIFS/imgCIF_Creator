@@ -1,0 +1,46 @@
+{% set version = "0.1" %}
+{% set name = "imgCIF_creator" %}
+
+package:
+  name: imgcif_creator
+  version: {{ version }}
+
+source:
+  path: ..
+
+build:
+  noarch: python
+  script: {{ PYTHON }} -m pip install . -vv --no-deps --no-build-isolation
+  number: 0
+
+requirements:
+  host:
+    - python
+    - flit-core >=3.11,<5
+    - pip
+  run:
+    - python
+    - dxtbx >=3.27
+    - h5py
+    - numpy
+    - prompt_toolkit
+    - requests
+    - scipy
+
+test:
+  imports:
+    - imgCIF_creator
+  commands:
+    - pip check
+  requires:
+    - pip
+    - python
+
+about:
+  summary: Create ImgCIF metadata describing X-ray crystallography datasets
+  license: ''
+  #license_file: PLEASE_ADD_LICENSE_FILE
+
+extra:
+  recipe-maintainers:
+    - takluyver

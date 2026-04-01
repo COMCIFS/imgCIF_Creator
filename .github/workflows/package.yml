@@ -1,12 +1,11 @@
-name: Test dials2imgcif
-
+name: Make conda package
 on:
   push:
-  pull_request:
-  workflow_dispatch:
+    branches:
+      - main
 
 jobs:
-  pytest-py312:
+  build:
     runs-on: "ubuntu-latest"
     defaults:
       run:
@@ -18,8 +17,10 @@ jobs:
         with:
           auto-update-conda: true
           conda-remove-defaults: true
+          channels: conda-forge
           python-version: "3.12"
-          environment-file: conda-env.yml
+          conda-build-version: "26.3.0"
 
-      - run: conda list
-      - run: pytest
+      - run: |
+          mkdir conda-bld
+          conda build --output-folder conda-bld conda/
