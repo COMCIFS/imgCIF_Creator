@@ -141,3 +141,23 @@ def test_multiframe_tiff(tmp_path):
     )
     assert res['_array_data_external_data.frame'] == [str(n+1) for n in range(146)]
     assert '_array_data_external_data.path' not in res
+
+
+def test_several_archives(tmp_path):
+    out_path = tmp_path / "result.cif"
+    urls = [f"https://zenodo.org/records/1036416/files/35dnba_30K_2_{i:02}.tar.bz2"
+            for i in range(1, 9)]
+    main([
+        str(samples_dir / 'DNBA.expt'),   # https://zenodo.org/records/1036416
+        "--no-check-format",
+        "--dir", "/gpfs/exfel/data/scratch/kluyvert/imgcif-conv/DNBA/unpacked_cbf_8_scans",
+        "--url", *urls,
+        "-o", str(out_path)
+    ])
+    assert out_path.is_file()
+
+    res = ReadCif(str(out_path))['result']
+
+    assert len(res['_array_data_external_data.uri']) == 6900
+    #assert res['_array_data_external_data.uri'][0] == urls[0]
+    assert sorted(set(res['_array_data_external_data.uri'])) == urls
