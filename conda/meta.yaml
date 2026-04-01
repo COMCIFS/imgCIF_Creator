@@ -32,6 +32,7 @@ test:
     - imgCIF_creator
   commands:
     - pip check
+    - imgcif-creator --help
   requires:
     - pip
     - python

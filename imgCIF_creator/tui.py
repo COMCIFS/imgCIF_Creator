@@ -1,6 +1,5 @@
 import argparse
 import io
-import re
 import sys
 from pathlib import Path
 from subprocess import run
