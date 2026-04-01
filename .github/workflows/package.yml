@@ -24,3 +24,8 @@ jobs:
       - run: |
           mkdir conda-bld
           conda build --output-folder conda-bld conda/
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: conda-package
+          path: conda-bld/noarch/imgcif_creator*
