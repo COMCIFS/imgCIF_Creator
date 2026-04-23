@@ -181,7 +181,7 @@ if not (expt_file := st.file_uploader("Upload .expt file", type="expt")):
     st.stop()
 
 with st.spinner("Reading file..."):
-    expts = ExperimentListFactory.from_json(expt_file.read())
+    expts = ExperimentListFactory.from_json(expt_file.read(), check_format=False)
 
 st.write(f"Found {len(expts)} experiment(s) with "
          f"{sum(len(e.imageset) for e in expts)} total images.\n")
