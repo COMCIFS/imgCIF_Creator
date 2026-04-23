@@ -30,11 +30,13 @@ from imgCIF_creator.helpers import (
 )
 from imgCIF_creator.cache_dir import DownloadsCache
 
-DATA_DIR = Path("/gpfs/exfel/data/scratch/kluyvert/imgcif-source-data")
 ARCHIVE_EXTS = {'ZIP': '.zip', 'TGZ': '.tar.gz', 'TBZ': '.tar.bz2', 'TXZ': '.tar.xz'}
 SIZE_LIMIT = 5 * (1024 ** 3)
 
-download_cache = DownloadsCache(DATA_DIR / "downloads")
+download_cache = DownloadsCache(Path(
+    os.environ.get("IMGCIF_DOWNLOAD_CACHE", "") or
+    "/gpfs/exfel/data/scratch/kluyvert/imgcif-source-data/downloads"
+))
 
 def fmt_bytes(n: Real) -> str:
     n = float(n)
