@@ -98,4 +98,4 @@ class DownloadsCache:
             return
 
         for de in entries[i:]:  # Remove oldest entries
-            self.remove(de)
+            self.delete(de)
