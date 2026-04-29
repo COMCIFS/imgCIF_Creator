@@ -3,7 +3,12 @@ import tempfile
 from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import dataclass
-from subprocess import run, CalledProcessError, Popen, PIPE
+from subprocess import run, CalledProcessError, Popen, DEVNULL, PIPE
+
+
+def check_url(url) -> bool:
+    res = run(["rsync", "--list-only", url], stdout=DEVNULL, stderr=DEVNULL)
+    return res.returncode == 0
 
 
 @contextmanager

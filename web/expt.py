@@ -9,6 +9,7 @@ import requests
 from dxtbx.model.experiment_list import ExperimentListFactory
 
 # Import imgCIF_creator from the nearby folder
+from imgCIF_creator import rsync
 from imgCIF_creator.core import (
     find_hdf5_images,
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl
@@ -25,7 +26,10 @@ def input_url_validated(label):
 
 def check_url(url, message="Checking URL..."):
     if url.startswith("rsync://"):
-        return url  # TODO: checking
+        if not rsync.check_url(url):
+            st.text("Rsync URL not found")
+            st.stop()
+        return url
 
     try:
         with st.spinner(message):

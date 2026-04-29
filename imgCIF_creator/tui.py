@@ -11,6 +11,7 @@ from dxtbx.model.experiment_list import ExperimentListFactory
 from prompt_toolkit import choice, prompt
 from prompt_toolkit.validation import Validator, ValidationError
 
+from . import rsync
 from .core import (
     ArchiveUrl,
     DirectoryUrl,
@@ -30,6 +31,12 @@ class URLValidator(Validator):
     def validate(self, document):
         url = document.text
         cp = document.cursor_position
+
+        if url.startswith("rsync://"):
+            if rsync.check_url(url):
+                return
+            else:
+                raise ValidationError(message="URL not found", cursor_position=cp)
 
         try:
             resp = requests.get(url, stream=True)
@@ -70,7 +77,7 @@ class DOIValidator(Validator):
 
 def check_url(url, msg="Checking URL..."):
     if url.startswith("rsync://"):
-        return True  # TODO
+        return rsync.check_url(url)
 
     print(msg, end=" ", flush=True)
     try:
