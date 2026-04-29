@@ -130,26 +130,24 @@ def input_download_info():
     else:  # Separate files
         if h5py.is_hdf5(first_path):
             first_path, *_ = next(find_hdf5_images(first_path))
-        print("First data file:")
-        print(" ", first_path)
+        st.markdown(f"First data file: `{first_path}`")
         first_url = input_url_validated("URL for this file: ")
 
         last_path = Path(expts[-1].imageset.get_path(len(expts[-1].imageset) - 1))
         if h5py.is_hdf5(last_path):
             last_path, *_ = list(find_hdf5_images(last_path))[-1]
 
-        base_dir = Path(os.path.commonpath([first_path, last_path]))
+        base_dir = Path(os.path.commonpath([first_path.parent, last_path.parent]))
         levels_under_base = len(first_path.relative_to(base_dir).parts)
         base_url = first_url.rsplit("/", levels_under_base)[0]
         last_url = f"{base_url}/{last_path.relative_to(base_dir).as_posix()}"
 
-        print("Last path:", last_path)
-        print(f"Last URL (extrapolated):\n  {last_url}")
+        st.markdown(f"Last path: `{last_path}`")
+        st.text(f"Last URL (extrapolated):\n  {last_url}")
         check_url(last_url)
-        print()
 
-        print("Base URL:", base_url)
-        print("Directory:", base_dir)
+        st.text(f"Base URL: {base_url}")
+        st.markdown(f"Directory: `{base_dir}`")
         return [DirectoryUrl(base_url, base_dir)]
 
 def get_doi(download_info):
