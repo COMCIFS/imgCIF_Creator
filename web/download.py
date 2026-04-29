@@ -10,10 +10,9 @@ import shutil
 import sys
 import tempfile
 from itertools import islice
-from numbers import Real
 from pathlib import Path
 from time import perf_counter
-from urllib.parse import urlsplit, urlunsplit
+from urllib.parse import urlsplit
 
 import streamlit as st
 import requests
@@ -26,26 +25,19 @@ from imgCIF_creator.core import (
     guess_archive_type, guess_file_type, make_cif, ArchiveUrl, DirectoryUrl
 )
 from imgCIF_creator.helpers import (
-    extrapolate_sequence, guess_doi, base_url_and_rel_paths
+    extrapolate_sequence, guess_doi, base_url_and_rel_paths, fmt_bytes
 )
 from imgCIF_creator.cache_dir import DownloadsCache
 
 ARCHIVE_EXTS = {'ZIP': '.zip', 'TGZ': '.tar.gz', 'TBZ': '.tar.bz2', 'TXZ': '.tar.xz'}
 SIZE_LIMIT = 5 * (1024 ** 3)
+CACHE_SIZE_BEFORE = 14 * (1024 ** 3)  # Size limit applied before downloading
 
 download_cache = DownloadsCache(Path(
     os.environ.get("IMGCIF_DOWNLOAD_CACHE", "") or
     "/gpfs/exfel/data/scratch/kluyvert/imgcif-source-data/downloads"
 ))
 
-def fmt_bytes(n: Real) -> str:
-    n = float(n)
-    for suffix in ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']:
-        if n < 1024:
-            break
-        n /= 1024
-
-    return f'{n:.1f} {suffix}'
 
 def _download(url, fout):
     resp = requests.get(url, stream=True)
@@ -207,6 +199,9 @@ if n_downloads > 1:
             st.stop()
 elif not url1:
     st.stop()
+
+
+download_cache.release_space(max_bytes_keep=CACHE_SIZE_BEFORE)
 
 
 if url1.startswith("rsync://"):

@@ -1,5 +1,6 @@
 import re
 import posixpath
+from numbers import Real
 from urllib.parse import urlsplit, urlunsplit
 
 from .core import ArchiveUrl, DirectoryUrl
@@ -91,3 +92,14 @@ def base_url_and_rel_paths(urls):
         posixpath.relpath(p, common_path) + ("/" if p.endswith("/") else "")
         for p in paths
     ]
+
+
+
+def fmt_bytes(n: Real) -> str:
+    n = float(n)
+    for suffix in ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']:
+        if n < 1024:
+            break
+        n /= 1024
+
+    return f'{n:.1f} {suffix}'

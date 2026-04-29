@@ -1,6 +1,7 @@
 import errno
 import hashlib
 import json
+import logging
 import os
 import os.path as osp
 import shutil
@@ -8,6 +9,8 @@ import tempfile
 from contextlib import contextmanager
 from pathlib import Path
 from secrets import token_hex
+
+from .helpers import fmt_bytes
 
 INFO_FILE = ".cache-info"
 
@@ -96,6 +99,9 @@ class DownloadsCache:
                 break
         else:
             return
+
+        logging.info("Removing %d cache entries to get cache folder to < %s",
+                     len(entries[i:]), fmt_bytes(max_bytes_keep))
 
         for de in entries[i:]:  # Remove oldest entries
             self.delete(de)
