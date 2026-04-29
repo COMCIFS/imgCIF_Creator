@@ -24,6 +24,9 @@ def input_url_validated(label):
     return check_url(url)
 
 def check_url(url, message="Checking URL..."):
+    if url.startswith("rsync://"):
+        return url  # TODO: checking
+
     try:
         with st.spinner(message):
             resp = requests.get(url, stream=True)

@@ -69,6 +69,9 @@ class DOIValidator(Validator):
 
 
 def check_url(url, msg="Checking URL..."):
+    if url.startswith("rsync://"):
+        return True  # TODO
+
     print(msg, end=" ", flush=True)
     try:
         resp = requests.get(url, stream=True)
