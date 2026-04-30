@@ -1,9 +1,12 @@
+import logging
 import signal
 import tempfile
 from pathlib import Path
 from contextlib import contextmanager
 from dataclasses import dataclass
 from subprocess import run, CalledProcessError, Popen, DEVNULL, PIPE
+
+log = logging.getLogger(__name__)
 
 
 def check_url(url) -> bool:
@@ -63,7 +66,24 @@ class RsyncFileList:
     def file_url(self, i: int):
         self.base_url.rstrip("/") + "/" + self.files[i][0]
 
+    @staticmethod
+    def _check_file(p: Path, expected_size: int):
+        try:
+            return p.stat().st_size == expected_size
+        except FileNotFoundError:
+            return False
+
     def download(self, dest: Path):
+        # Shortcut: if we have all the files already, skip running rsync again.
+        # This assumes the files we're downloading don't change (without their
+        # size changing), but rsync checking all the files is inconveniently
+        # slow for a cache.
+        if all(self._check_file(dest / n, size) for (n, size) in self.files):
+            log.info("Skipping rsync download (%s), files already exist",
+                     self.base_url)
+            return
+
+        log.info("Rsync-ing files from %s", self.base_url)
         with temp_file_list([f for f, _ in self.files]) as file_list:
             popen = Popen([
                 "rsync",
@@ -78,6 +98,7 @@ class RsyncFileList:
                 for i, line in enumerate(popen.stdout):
                     yield i  # For progress monitoring
             except:
+                log.debug("Stopping rsync with SIGTERM on exception")
                 popen.send_signal(signal.SIGTERM)
                 raise
             else:
