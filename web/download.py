@@ -214,6 +214,7 @@ if url1.startswith("rsync://"):
 
     nfiles = len(files_on_server.files)
     download_dir = download_cache.prepare(base_url)
+    download_cache.set_info(base_url, files_on_server.total_files())
 
     progress = st.progress(0, f'Downloading {nfiles} files')
     for ndone in files_on_server.download(download_dir):
