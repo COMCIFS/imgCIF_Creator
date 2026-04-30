@@ -181,6 +181,10 @@ print("Running script")
 
 st.title("ImgCIF creator")
 
+st.text("This helps you create an ImgCIF file from a set of X-ray diffraction image "
+        "files stored in a publicly accessible repository, such as Zenodo or proteindiffraction.org. "
+        "Please give one or more download URLs to get started.")
+
 n_downloads = st.number_input("Number of downloads", min_value=1)
 
 url1 = st.text_input("Download URL" + (" 1" if n_downloads > 1 else ""))
