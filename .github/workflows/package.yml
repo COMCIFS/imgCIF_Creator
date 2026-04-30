@@ -36,7 +36,7 @@ jobs:
       - name: publish to anaconda.org
         if: ${{ startsWith(github.ref, 'refs/tags/') }}
         run: |
-          conda install anaconda-client
+          conda install -q anaconda-client
           anaconda --token ${{ secrets.ANACONDA_ORG_UPLOAD_TOKEN }} upload \
-            --user COMCIFS
+            --user COMCIFS \
             conda-bld/noarch/imgcif_creator*
