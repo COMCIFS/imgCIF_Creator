@@ -523,7 +523,7 @@ _diffrn_detector.diffrn_id DIFFRN
     outf.write(cif_loop(
         "_array_structure_list_axis",
         ["axis_id", "axis_set_id", "displacement", "displacement_increment"],
-        [(ax, i, v['pix_size'] / 2, v['pix_size'])
+        [(ax, i, 0, v['pix_size'])
          for i, (ax, v) in enumerate(s_axes.items(), start=1)]
     ))
 
