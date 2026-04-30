@@ -5,6 +5,7 @@ To run this:
     streamlit run streamlit-downloading.py
 """
 import io
+import logging
 import os
 import shutil
 import sys
@@ -32,6 +33,8 @@ from imgCIF_creator.cache_dir import DownloadsCache
 ARCHIVE_EXTS = {'ZIP': '.zip', 'TGZ': '.tar.gz', 'TBZ': '.tar.bz2', 'TXZ': '.tar.xz'}
 SIZE_LIMIT = 5 * (1024 ** 3)
 CACHE_SIZE_BEFORE = 14 * (1024 ** 3)  # Size limit applied before downloading
+
+logging.basicConfig(level=logging.INFO)
 
 download_cache = DownloadsCache(Path(
     os.environ.get("IMGCIF_DOWNLOAD_CACHE", "") or

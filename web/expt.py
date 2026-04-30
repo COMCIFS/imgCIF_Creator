@@ -1,4 +1,5 @@
 import io
+import logging
 import os.path
 from pathlib import Path
 from urllib.parse import urlsplit
@@ -17,6 +18,8 @@ from imgCIF_creator.core import (
 from imgCIF_creator.helpers import (
     extrapolate_sequence,  guess_doi, base_url_and_rel_paths
 )
+
+logging.basicConfig(level=logging.INFO)
 
 
 def input_url_validated(label):
