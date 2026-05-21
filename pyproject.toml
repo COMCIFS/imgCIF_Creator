@@ -21,3 +21,4 @@ Home = "https://github.com/COMCIFS/imgCIF_Creator"
 
 [project.scripts]
 imgcif-creator = "imgCIF_creator.tui:main"
+make-cbf = "imgCIF_creator.make_cbf_cli:main"

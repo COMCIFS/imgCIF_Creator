@@ -7,13 +7,18 @@ Orignal author: Dr. James Hester, ANSTO, Lucas Heights, Australia
 import math
 import re
 import sys
+import os
+import io
+from time import gmtime, strftime
 from dataclasses import dataclass
 from pathlib import Path
 
 import h5py
 import numpy as np
 from dxtbx.format.FormatSMV import FormatSMV
+from dxtbx.format.FormatCBFMini import FormatCBFMini
 from dxtbx.model import Detector, ExperimentList, MultiAxisGoniometer, Panel
+from dxtbx.model import KappaGoniometer
 from dxtbx.model.beam import Probe
 from scipy.spatial.transform import Rotation as R
 
@@ -21,6 +26,12 @@ CIF_HEADER = """\
 #\\#CIF_2.0
 # CIF converted from DIALS .expt file
 # Conversion routine version 0.1
+data_{name}
+"""
+
+CBF_HEADER = """\
+###CBF
+# CBF created using dxtbx tools
 data_{name}
 """
 
@@ -180,7 +191,7 @@ def get_two_theta(detector: Detector, axis_rotation):
     if np.linalg.norm(p_onrm - [0,0,-1]) < 0.0001:
         return 0.0, None
 
-    rot_obj, *_ = R.align_vectors(np.array([0,0,-1]), p_onrm)
+    rot_obj, *_ = R.align_vectors(p_onrm, np.array([0,0,-1]))
     rot_vec = rot_obj.as_rotvec(degrees=True)
     tth_angl = np.linalg.norm(rot_vec)
     tth_axis = rot_vec / tth_angl
@@ -235,6 +246,7 @@ def get_srf_axes(expts: ExperimentList, axis_rotation):
     axis_dict = {}
 
     tth_angl, tth_axis = get_two_theta(d_info, axis_rotation)
+
     for i, panel in enumerate(d_info, start=1):
         fast = axis_rotation.apply(panel.get_fast_axis())
         slow = axis_rotation.apply(panel.get_slow_axis())
@@ -242,7 +254,7 @@ def get_srf_axes(expts: ExperimentList, axis_rotation):
 
         if tth_axis is not None:
             # rotation matrix from 2theta angle-axis (reverse angle)
-            rot_vec = tth_angl * tth_axis  # exp. result in separate test, but may need *-1
+            rot_vec = -1 * tth_angl * tth_axis  # Unrotate
             rot_mat = R.from_rotvec(rot_vec, degrees=True).as_matrix()
             # apply to (rotated) detector base axes in order to 'unrotate'
             fast = np.around(np.dot(rot_mat, fast), decimals=3)
@@ -449,9 +461,14 @@ def write_beam_info(expts: ExperimentList, outf):
         raise ValueError(f"Unexpected probe type {pr}")
 
     cif_block = f"""
-_diffrn_radiation_wavelength.id    1
-_diffrn_radiation_wavelength.value {wl}
+_diffrn.id                         DIFFRN
+_diffrn_radiation.diffrn_id        DIFFRN
+_diffrn_radiation.wavelength_id    WAVELENGTH1
 _diffrn_radiation.probe            {probe}
+
+_diffrn_radiation_wavelength.id    WAVELENGTH1
+_diffrn_radiation_wavelength.value {wl}
+_diffrn_radiation_wavelength.wavelength {wl}   #older equivalent
 
 """
     outf.write(cif_block)
@@ -505,9 +522,9 @@ def write_axis_info(g_axes, d_axes, s_axes, outf):
                      ax[0], ax[1], ax[2], origin[0], origin[1], origin[2]))
 
     outf.write(cif_loop("_axis", fields, rows))
-
-
-def write_array_info(det_name, n_elms, s_axes, d_axes, outf, overload_value=None):
+ 
+def write_array_info(det_name, n_elms, s_axes, d_axes, outf,
+                     overload_value=None, gain_value=1.0):
     """ Output information about the layout of the pixels. We assume two axes,
         with the first one the fast direction, and that there is no dead space
         between pixels.
@@ -544,13 +561,15 @@ _diffrn_detector.diffrn_id DIFFRN
          for i, v in enumerate(s_axes.values(), start=1)]
     ))
 
+    outf.write(f"_array_intensities.gain        {gain_value}\n")
     if overload_value is not None:
         outf.write(f"_array_intensities.overload    {overload_value}\n\n")
 
 
-
-def write_scan_info(expts: ExperimentList, g_axes, d_axes, outf):
-    """ Output scan axis information
+def write_scan_info(expts: ExperimentList, g_axes, d_axes, outf, only_scan = None):
+    """ Output scan axis information. If `only_scan` is not None, only output
+    information for that scan. In a full CBF, Dials assumes information for only
+    a single scan is presented.
     """
     fields = [
         "scan_id", "axis_id", "displacement_start", "displacement_increment",
@@ -560,6 +579,9 @@ def write_scan_info(expts: ExperimentList, g_axes, d_axes, outf):
     fmt = lambda v: format(v, '.2f')
 
     for s_ix, expt in enumerate(expts):
+
+        if only_scan != None and s_ix != only_scan:
+            continue
 
         scan_id = f'SCAN.{s_ix+1}'
 
@@ -695,6 +717,91 @@ def write_external_locations(ext_info, outf, scan_frame_limit=np.inf):
 
     outf.write(cif_loop("_array_data_external_data", fields, rows))
 
+def write_measurement_info(expt, outf):
+    """
+    Write goniometer measurement strategy. This may change from
+    scan to scan so is called for each frame
+    """
+    outf.write(""" #Boilerplate for cbflib
+loop_
+_diffrn_measurement.diffrn_id
+_diffrn_measurement.id
+DIFFRN GONIOMETER
+
+loop_
+_diffrn_measurement_axis.measurement_id
+_diffrn_measurement_axis.axis_id
+    """
+               )
+
+    if isinstance(expt.goniometer, MultiAxisGoniometer):
+        scan_axis = expt.goniometer.get_scan_axis()
+        axis_name = expt.goniometer.get_names()[scan_axis]
+    elif isinstance(expt.goniometer, KappaGoniometer):
+        axis_name = "TODO"
+    else:
+        axis_name = GONIO_DEFAULT_AXIS
+        
+    outf.write(f"GONIOMETER {axis_name}\n")
+
+    outf.write("\n")
+
+def write_this_frame_info(expts, g_axes, d_axes, frame_no, scan_no, outf):
+    """
+    Write info pertaining to one particular frame.
+    """
+    # Exposure and integration times
+    int_time = expts[scan_no].scan.get_exposure_times()[frame_no]
+    epoch = expts[scan_no].scan.get_image_epoch(frame_no + 1)
+    timestamp = strftime("%Y-%m-%dT%H:%M:%S", gmtime(epoch))
+    
+    outf.write(f"""loop_
+_diffrn_scan_frame.frame_id
+_diffrn_scan_frame.frame_number
+_diffrn_scan_frame.integration_time
+_diffrn_scan_frame.date
+_diffrn_scan_frame.scan_id
+FRAME{frame_no+1} {frame_no+1} {int_time} {timestamp} SCAN.{scan_no+1}
+
+loop_
+_diffrn_data_frame.id
+_diffrn_data_frame.detector_element_id
+_diffrn_data_frame.array_id
+_diffrn_data_frame.binary_id
+FRAME{frame_no+1} ELEMENT1 1 1
+
+""")
+
+    # Info for this frame (TODO: Kappa goniometer)
+    if isinstance(expts[scan_no].goniometer, MultiAxisGoniometer):
+        axis_names = expts[scan_no].goniometer.get_names()
+        axis_angles = expts[scan_no].goniometer.get_angles()
+        scan_ax = expts[scan_no].goniometer.get_scan_axis()
+    elif isinstance(expts[scan_no].goniometer, KappaGoniometer):
+        axis_names = ["todo", "todo", "todo"]
+        axis_angles = [0, 0, 0]
+        scan_ax = 0
+    else:
+        axis_names = [GONIO_DEFAULT_AXIS]
+        axis_angles = [-1000] # should never be used 
+        scan_ax = 0
+
+    rows = []
+    osc_angle = expts[scan_no].scan.get_image_oscillation(frame_no + 1)[0]
+    for num, (n, a) in enumerate(zip(axis_names, axis_angles)):
+        if num == scan_ax:
+           rows.append((f"FRAME{frame_no+1}", n, f"{osc_angle}", "."))
+        else:
+           rows.append((f"FRAME{frame_no+1}", n, f"{a}", "."))
+
+    for k, v in d_axes.items():
+        if k == "Trans":
+            rows.append((f"FRAME{frame_no+1}", k, ".", v['vals'][scan_no]))
+        else:
+            rows.append((f"FRAME{frame_no+1}", k, v['vals'][scan_no], "."))
+    
+    outf.write(cif_loop("_diffrn_scan_frame_axis", ["frame_id", "axis_id", "angle", "displacement"], rows))
+        
 
 def encode_scan_step(template, val):
     """ Encode the file number into a scan template. The template has a sequence
@@ -707,7 +814,35 @@ def encode_scan_step(template, val):
         return f"{val:0{width}}."
     return re.sub(r"(#+)\.", repl, template)
 
+def create_binary_part(imageset, frame_no):
+    """ Re-encode binary image information into CBF standard
+    """
 
+    # Write a full miniCBF and take the binary part
+    
+    FormatCBFMini.as_file(
+            imageset.get_detector(),
+            imageset.get_beam(),
+            imageset.get_goniometer(),
+            imageset.get_scan()[frame_no],
+            imageset.get_raw_data(frame_no)[0],
+            "scratch.cbf",
+        )
+
+    # Now extract the binary part
+
+    delimiter = bytes("--CIF-BINARY-FORMAT-SECTION--", "utf8")
+    with open("scratch.cbf","rb") as f:
+        full_contents = f.read()
+
+    pieces = full_contents.split(delimiter)
+    if len(pieces) != 3:
+        return None
+
+    # get loop header; none at present
+    
+    return b"_array_data.data\n;\n" + delimiter + pieces[1] + delimiter + pieces[2]
+        
 def make_cif(expts, outf, data_name, locations, doi=None,
              file_type=None, overload_value=None, frame_limit=np.inf):
     outf.write(CIF_HEADER.format(name=data_name))
@@ -731,3 +866,94 @@ def make_cif(expts, outf, data_name, locations, doi=None,
         expts, locations, file_type
     )
     write_external_locations(ext_info, outf, frame_limit)
+
+def create_new_template(old_template):
+    """
+    Derive a new directory for CBF files
+    """
+    old_path, old_fn = os.path.split(old_template)
+    one_dir_missing = os.path.split(old_path)[0]
+    new_dir = os.path.join(one_dir_missing, "CBF")
+    if not os.path.isdir(new_dir):
+        os.mkdir(new_dir)
+    no_ext = os.path.splitext(old_fn)
+    new_fn = no_ext[0] + ".cbf"
+    return os.path.join(new_dir, new_fn)
+
+def make_cbf(expts: ExperimentList, frame_limit = 5):
+    """ Write a full CBF for every image in `expts`.
+    """
+    # Get the images
+
+    imagesets = expts.imagesets()
+
+    # Create the constant part
+
+    outf = io.StringIO()
+
+    # Write header
+    
+    outf.write(CBF_HEADER.format(name="frame"))
+
+    write_beam_info(expts, outf)
+    g_ax, d_ax, s_ax = get_axes_info(expts)
+    write_axis_info(g_ax, d_ax, s_ax, outf)
+
+    # Grab some detector information
+    
+    gain_value = expts[0].detector[0].get_gain()
+    overload_value = expts[0].detector[0].get_trusted_range()[1]
+    
+    write_array_info('DETECTOR',
+                     len(list(expts[0].detector.iter_panels())),
+                     s_ax, d_ax, outf, overload_value, gain_value)
+    
+    const_part = bytes(outf.getvalue(), "utf8")
+    outf.close()
+    
+    for scan_no in range(len(expts)):
+
+        # New template for each scan in CBF directory
+
+        fullpath = imagesets[scan_no].get_template()
+        outtempl = create_new_template(fullpath)
+
+        # Only provide information for this scan to get around a
+        # Dials limitation
+
+        outf = io.StringIO()
+        write_scan_info(expts, g_ax, d_ax, outf, only_scan = scan_no)
+        this_scan_info = bytes(outf.getvalue(), "utf8")
+        outf.close()
+        
+        # Have to create a separate file for every frame
+
+        for frame_no in range(len(imagesets[scan_no])):
+
+            if frame_limit != None and frame_no >= frame_limit:
+                break
+            
+            bb = create_binary_part(imagesets[scan_no], frame_no)
+ 
+            # Create filename and open
+        
+            filename = encode_scan_step(outtempl, frame_no+1)
+
+            outf = open(filename, "wb")
+
+            outf.write(const_part)
+            outf.write(this_scan_info)
+
+            # Output details of this particular frame
+
+            outf_txt = io.TextIOWrapper(outf, 'utf-8', write_through=True)
+
+            write_measurement_info(expts[scan_no], outf_txt)
+            write_this_frame_info(expts, g_ax, d_ax, frame_no, scan_no, outf_txt)
+
+            # Write the binary part
+            outf.write(bb)
+            outf.close()
+
+            
+    print(f"Finished outputting CBF frames to {outtempl}")

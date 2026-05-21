@@ -29,6 +29,12 @@ You can run it on files or folders of data in CBF, HDF5, TIFF or SMV format.
 Alternatively, if you already have a DIALS `.expt` experiment file, you can use
 that as input.
 
+#### Generating CBF files from Dials-recognised data
+
+```shell
+make-cbf path/to/data/directory
+```
+
 ## Web interface
 
 https://imgcif.iucr.org/
