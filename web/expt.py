@@ -179,6 +179,11 @@ def input_file_type(name: str, dxtbx_fmt_cls):
         st.stop()
     return res
 
+st.sidebar.html("""\
+<small>This service has been developed with support from the <a href="https://oscars-project.eu/">OSCARS project</a>,
+which has received funding from the European Commission’s Horizon Europe
+Research and Innovation programme under grant agreement No. 101129751.</small>
+""")
 
 st.title("ImgCIF creator")
 

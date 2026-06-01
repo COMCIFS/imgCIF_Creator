@@ -179,6 +179,12 @@ def file_rel_paths(top):
 
 print("Running script")
 
+st.sidebar.html("""\
+<small>This service has been developed with support from the <a href="https://oscars-project.eu/">OSCARS project</a>,
+which has received funding from the European Commission’s Horizon Europe
+Research and Innovation programme under grant agreement No. 101129751.</small>
+""")
+
 st.title("ImgCIF creator")
 
 st.text("This helps you create an ImgCIF file from a set of X-ray diffraction image "
