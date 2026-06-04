@@ -19,6 +19,8 @@ import streamlit as st
 import requests
 from dxtbx.model.experiment_list import ExperimentListFactory
 
+from shared import acknowledgements
+
 # Import imgCIF_creator from the nearby folder
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from imgCIF_creator import rsync
@@ -179,11 +181,7 @@ def file_rel_paths(top):
 
 print("Running script")
 
-st.sidebar.html("""\
-<small>This service has been developed with support from the <a href="https://oscars-project.eu/">OSCARS project</a>,
-which has received funding from the European Commission’s Horizon Europe
-Research and Innovation programme under grant agreement No. 101129751.</small>
-""")
+acknowledgements()
 
 st.title("ImgCIF creator")
 
