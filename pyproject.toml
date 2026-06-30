@@ -6,6 +6,7 @@ build-backend = "flit_core.buildapi"
 name = "imgCIF_creator"
 authors = [{name = "Thomas Kluyver", email = "thomas.kluyver@xfel.eu"}]
 readme = "README.md"
+license = "EUPL-1.2"
 dependencies = [
     "dxtbx >=3.27",  # dxtbx is not available from PyPI - need to install through conda
     "h5py",

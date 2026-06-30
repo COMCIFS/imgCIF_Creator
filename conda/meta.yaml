@@ -39,8 +39,8 @@ test:
 
 about:
   summary: Create ImgCIF metadata describing X-ray crystallography datasets
-  license: ''
-  #license_file: PLEASE_ADD_LICENSE_FILE
+  license: 'EUPL-1.2'
+  license_file: LICENSE
 
 extra:
   recipe-maintainers:

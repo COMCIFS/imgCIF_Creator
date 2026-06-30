@@ -1,3 +1,5 @@
+# Copyright European XFEL GmbH, ANSTO & Utrecht University, 2024-2026
+# Licensed under the EUPL-1.2 or later
 import sys
 from argparse import ArgumentParser
 from pathlib import Path
