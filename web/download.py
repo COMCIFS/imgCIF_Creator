@@ -4,6 +4,9 @@ To run this:
 
     streamlit run streamlit-downloading.py
 """
+# Copyright European XFEL GmbH, ANSTO & Utrecht University, 2024-2026
+# Licensed under the EUPL-1.2 or later
+
 import io
 import logging
 import os

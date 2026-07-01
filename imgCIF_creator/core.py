@@ -3,6 +3,8 @@ Ported from
 https://github.com/COMCIFS/instrument-geometry-info/blob/main/Tools/dials_expt_to_imgcif.jl
 Orignal author: Dr. James Hester, ANSTO, Lucas Heights, Australia 
 """
+# Copyright European XFEL GmbH, ANSTO & Utrecht University, 2024-2026
+# Licensed under the EUPL-1.2 or later
 
 import math
 import re
